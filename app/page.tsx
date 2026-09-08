@@ -854,7 +854,7 @@ function StreamManager({
       </div>
       <div className="border-t border-slate-200 pt-3 dark:border-slate-700">
         <p className="mb-2 text-xs text-slate-500 dark:text-slate-400">
-          Upload file tracker Excel terbaru (.xlsx, sheet &quot;Project Tracker&quot;)
+          Upload file tracker Excel terbaru (.xlsx, sheet &quot;2. All Project 2026&quot;)
           kapan saja untuk sinkronkan Stream/Application/Initiative beserta status RAG
           &amp; Phase-nya — tidak perlu input manual satu-satu, dan aman diulang tiap
           tracker di-update.

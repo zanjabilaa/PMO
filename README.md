@@ -35,6 +35,14 @@ orang buka link yang sama untuk input update atau lihat dashboard.
 - **Export ke Excel** — tombol "Export Excel" di dashboard untuk unduh kondisi portfolio
   (sesuai filter yang sedang aktif) sebagai `.xlsx`, siap dipakai bahan susun deck biweekly
   manual.
+- **Action Item Tracker (`/actions`)** — catat action item dengan owner, due date, dan
+  source (mis. "Meeting 5 Sep"), lepas dari catatan pribadi tiap orang. Item yang lewat
+  due date otomatis ditandai overdue, baik di halaman ini maupun sebagai badge di
+  dashboard dan portfolio health summary.
+- **Document Readiness Checklist (`/documents`)** — matrix per initiative × jenis dokumen
+  (default: Project Charter, PRD, RNI — bisa ditambah/diganti lewat "Kelola Dokumen", sama
+  seperti Stream) dengan status Belum mulai/In Progress/Selesai/N-A yang tinggal diklik.
+  Dashboard menampilkan ringkasannya sebagai badge "dokumen selesai / total" per initiative.
 - **Stream fleksibel** — daftar Stream bisa ditambah, diganti nama, diurutkan ulang, atau
   diarsipkan langsung dari dashboard (tombol "Kelola Stream") — tidak hardcode di kode,
   jadi kalau nama/jumlah stream berubah, tidak perlu deploy ulang.
@@ -49,11 +57,21 @@ orang buka link yang sama untuk input update atau lihat dashboard.
   data (`npm run seed` / tombol di UI): satu untuk struktur Stream/Application/Initiative
   awal, satu lagi untuk mensimulasikan import narasi update dari deck biweekly.
 
-**Belum ada (sengaja ditunda):** auto-generate ke deck PowerPoint, dan notifikasi
-follow-up otomatis (email/Slack) untuk risk/action item — halaman Risk Register dan
-export Excel di atas jadi langkah awal ke arah situ, tapi kirim notifikasinya sendiri
-masih manual. Isi deck biweekly juga tetap manual: lihat dashboard atau hasil export,
-lalu copy kontennya.
+**Belum ada (sengaja ditunda):** ekstraksi otomatis dari meeting notes (perlu integrasi
+LLM — lihat catatan di bawah), auto-generate bi-weekly report/deck PowerPoint, notifikasi
+follow-up otomatis (email/Slack), dan cross-source reconciliation (bandingkan Excel
+tracker vs update manual vs hasil ekstraksi notes untuk flag data yang tidak konsisten).
+Untuk sekarang, action item & dokumen tetap diinput manual (bukan dari paste notes
+mentah), dan isi deck biweekly tetap manual: lihat dashboard atau hasil export, lalu copy
+kontennya.
+
+> **Soal AI/LLM:** beberapa fitur di atas (baca meeting notes secara natural, generate
+> narasi report "What happened → So what → What's next") butuh model bahasa, bukan cuma
+> parsing kolom seperti Excel import. Belum diimplementasikan karena perlu keputusan
+> provider (Anthropic/Claude berbayar tapi murah di volume kecil, vs provider dengan
+> free-tier seperti Google Gemini/Groq dengan kualitas berbeda) dan API key milik sendiri
+> — app ini publik tanpa login, jadi endpoint yang manggil LLM juga perlu rate limit dasar
+> supaya tidak disalahgunakan.
 
 ## Stack
 
@@ -100,8 +118,9 @@ lalu copy kontennya.
 
    Buka [http://localhost:3000](http://localhost:3000) untuk dashboard, atau
    [http://localhost:3000/input](http://localhost:3000/input) untuk input update. Semua
-   tabel (`streams`, `applications`, `initiatives`, `updates`, `timeline_entries`) dibuat
-   otomatis saat request API pertama kali jalan.
+   tabel (`streams`, `applications`, `initiatives`, `updates`, `timeline_entries`,
+   `action_items`, `document_types`, `document_checklist`) dibuat otomatis saat request
+   API pertama kali jalan.
 
 ## Deploy ke Vercel
 
@@ -134,6 +153,9 @@ updates          (id, initiative_id, period_label, rag,
                    key_highlight, progress_last_2wk, plan_next_2wk,
                    risk_issue, unlocking_needed, created_at)
 timeline_entries (id, initiative_id, year, month, status)
+action_items     (id, initiative_id, description, owner, due_date, status, source, created_at)
+document_types   (id, name, sort_order, archived)
+document_checklist (id, initiative_id, document_type_id, status, link, updated_at)
 ```
 
 Setiap `initiative` bisa punya banyak `updates` (satu per periode biweekly) — dashboard
@@ -142,4 +164,9 @@ menampilkan yang terbaru per initiative, histori tetap tersimpan di database.
 upload), berbeda dari `updates.rag` yang melekat ke satu laporan naratif biweekly —
 keduanya ditampilkan terpisah di dashboard. `timeline_entries` menyimpan status Gantt
 bulanan per initiative, diisi langsung dari halaman `/timeline` (klik untuk siklus
-status), bukan diturunkan dari data lain.
+status), bukan diturunkan dari data lain. `action_items` menyimpan follow-up dengan due
+date/owner/source, ditandai overdue kalau `due_date` sudah lewat dan `status` bukan
+`done`. `document_types` (default: Project Charter, PRD, RNI) sama fleksibelnya dengan
+`streams` — bisa ditambah/diganti nama/diarsipkan dari `/documents` tanpa ubah kode;
+`document_checklist` menyimpan status tiap kombinasi initiative × document type (kalau
+belum ada baris, dianggap "Belum mulai").

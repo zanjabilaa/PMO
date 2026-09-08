@@ -377,6 +377,18 @@ function InputForm() {
           >
             Risk Register
           </Link>
+          <Link
+            href="/actions"
+            className="text-sm font-medium text-slate-600 underline dark:text-slate-300"
+          >
+            Action Items
+          </Link>
+          <Link
+            href="/documents"
+            className="text-sm font-medium text-slate-600 underline dark:text-slate-300"
+          >
+            Documents
+          </Link>
         </div>
       </header>
 

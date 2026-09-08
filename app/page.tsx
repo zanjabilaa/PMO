@@ -26,6 +26,10 @@ type DashInitiative = {
   latestUpdate: Update | null;
   previousRag: Rag | null;
   updateCount: number;
+  openActionItems: number;
+  overdueActionItems: number;
+  docsDone: number;
+  docsTotal: number;
 };
 
 type DashApplication = {
@@ -147,6 +151,18 @@ export default function DashboardPage() {
             className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium dark:border-slate-600"
           >
             Risk Register
+          </Link>
+          <Link
+            href="/actions"
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium dark:border-slate-600"
+          >
+            Action Items
+          </Link>
+          <Link
+            href="/documents"
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium dark:border-slate-600"
+          >
+            Documents
           </Link>
           <Link
             href="/timeline"
@@ -345,6 +361,33 @@ function InitiativeCard({ initiative }: { initiative: DashInitiative }) {
               {showHistory ? "Sembunyikan" : `Riwayat (${initiative.updateCount})`}
             </button>
           )}
+          {initiative.openActionItems > 0 && (
+            <Link
+              href="/actions"
+              title={`${initiative.openActionItems} action item terbuka, ${initiative.overdueActionItems} overdue`}
+              className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                initiative.overdueActionItems > 0
+                  ? "bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-300"
+                  : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+              }`}
+            >
+              ☑ {initiative.openActionItems}
+              {initiative.overdueActionItems > 0 ? ` (${initiative.overdueActionItems} overdue)` : ""}
+            </Link>
+          )}
+          {initiative.docsTotal > 0 && (
+            <Link
+              href="/documents"
+              title="Document readiness"
+              className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                initiative.docsDone === initiative.docsTotal
+                  ? "bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-300"
+                  : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+              }`}
+            >
+              📄 {initiative.docsDone}/{initiative.docsTotal}
+            </Link>
+          )}
           <Link
             href={`/input?initiativeId=${initiative.id}`}
             className="rounded-full border border-slate-300 px-2.5 py-0.5 text-xs font-medium text-slate-600 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800"
@@ -414,10 +457,12 @@ function PortfolioSummary({ streams }: { streams: DashStream[] }) {
   const counts: Record<Rag, number> = { green: 0, amber: 0, red: 0 };
   let noUpdate = 0;
   let stale = 0;
+  let overdueActions = 0;
   for (const init of initiatives) {
     if (init.latestUpdate) counts[init.latestUpdate.rag]++;
     else noUpdate++;
     if (isStale(init)) stale++;
+    overdueActions += init.overdueActionItems;
   }
   const onTrackPct = total > 0 ? Math.round((counts.green / total) * 100) : 0;
 
@@ -441,10 +486,15 @@ function PortfolioSummary({ streams }: { streams: DashStream[] }) {
       className: "text-orange-700 dark:text-orange-400",
       title: noUpdate > 0 ? `Termasuk ${noUpdate} yang belum pernah diisi sama sekali` : undefined,
     },
+    {
+      label: "Overdue Action Items",
+      value: overdueActions,
+      className: "text-red-700 dark:text-red-400",
+    },
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-6">
       {tiles.map((t) => (
         <div
           key={t.label}

@@ -123,6 +123,18 @@ export default function RiskRegisterPage() {
             Timeline
           </Link>
           <Link
+            href="/actions"
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium dark:border-slate-600"
+          >
+            Action Items
+          </Link>
+          <Link
+            href="/documents"
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium dark:border-slate-600"
+          >
+            Documents
+          </Link>
+          <Link
             href="/input"
             className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white dark:bg-slate-100 dark:text-slate-900"
           >

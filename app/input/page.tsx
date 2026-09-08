@@ -371,6 +371,12 @@ function InputForm() {
           >
             Timeline
           </Link>
+          <Link
+            href="/risks"
+            className="text-sm font-medium text-slate-600 underline dark:text-slate-300"
+          >
+            Risk Register
+          </Link>
         </div>
       </header>
 

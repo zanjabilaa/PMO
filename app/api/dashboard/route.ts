@@ -9,7 +9,11 @@ import {
 
 export const dynamic = "force-dynamic";
 
-export type DashboardInitiative = Initiative & { latestUpdate: Update | null };
+export type DashboardInitiative = Initiative & {
+  latestUpdate: Update | null;
+  previousRag: Update["rag"] | null;
+  updateCount: number;
+};
 export type DashboardApplication = Application & { initiatives: DashboardInitiative[] };
 export type DashboardStream = Stream & { applications: DashboardApplication[] };
 
@@ -33,23 +37,33 @@ export async function GET() {
     ORDER BY name ASC
   `) as Initiative[];
 
-  const latestUpdates = (await sql`
-    SELECT DISTINCT ON (initiative_id)
-      id, initiative_id, period_label, rag, key_highlight, progress_last_2wk,
-      plan_next_2wk, risk_issue, unlocking_needed, created_at
+  // Ordered newest-first per initiative so the first entry is the latest
+  // update and the second is the previous one (used for the RAG trend
+  // indicator) without a second round-trip to the database.
+  const allUpdates = (await sql`
+    SELECT id, initiative_id, period_label, rag, key_highlight, progress_last_2wk,
+           plan_next_2wk, risk_issue, unlocking_needed, created_at
     FROM updates
     ORDER BY initiative_id, created_at DESC
   `) as Update[];
 
-  const updateByInitiative = new Map<number, Update>();
-  for (const update of latestUpdates) {
-    updateByInitiative.set(update.initiative_id, update);
+  const updatesByInitiative = new Map<number, Update[]>();
+  for (const update of allUpdates) {
+    const list = updatesByInitiative.get(update.initiative_id) ?? [];
+    list.push(update);
+    updatesByInitiative.set(update.initiative_id, list);
   }
 
   const initiativesByApplication = new Map<number, DashboardInitiative[]>();
   for (const initiative of initiatives) {
     const list = initiativesByApplication.get(initiative.application_id) ?? [];
-    list.push({ ...initiative, latestUpdate: updateByInitiative.get(initiative.id) ?? null });
+    const history = updatesByInitiative.get(initiative.id) ?? [];
+    list.push({
+      ...initiative,
+      latestUpdate: history[0] ?? null,
+      previousRag: history[1]?.rag ?? null,
+      updateCount: history.length,
+    });
     initiativesByApplication.set(initiative.application_id, list);
   }
 

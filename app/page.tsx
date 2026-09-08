@@ -24,6 +24,8 @@ type DashInitiative = {
   current_rag: Rag;
   current_phase: string;
   latestUpdate: Update | null;
+  previousRag: Rag | null;
+  updateCount: number;
 };
 
 type DashApplication = {
@@ -47,13 +49,31 @@ const RAG_STYLE: Record<Rag, string> = {
 
 const RAG_LABEL: Record<Rag, string> = { green: "Green", amber: "Amber", red: "Red" };
 
+const RAG_SEVERITY: Record<Rag, number> = { green: 0, amber: 1, red: 2 };
+
 const POLL_INTERVAL_MS = 8000;
+
+// Update cadence is biweekly (14 days); anything past this without a fresh
+// update is flagged so it doesn't silently go quiet on the dashboard.
+const STALE_DAYS = 21;
 
 function countInitiatives(streams: DashStream[]) {
   return streams.reduce(
     (sum, s) => sum + s.applications.reduce((a, app) => a + app.initiatives.length, 0),
     0
   );
+}
+
+function daysSince(iso: string): number {
+  return Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
+}
+
+function isStale(initiative: DashInitiative): boolean {
+  return !initiative.latestUpdate || daysSince(initiative.latestUpdate.created_at) > STALE_DAYS;
+}
+
+function allInitiatives(streams: DashStream[]): DashInitiative[] {
+  return streams.flatMap((s) => s.applications.flatMap((a) => a.initiatives));
 }
 
 export default function DashboardPage() {
@@ -121,6 +141,13 @@ export default function DashboardPage() {
           >
             Kelola Stream
           </button>
+          <ExportButton streams={filteredStreams} />
+          <Link
+            href="/risks"
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium dark:border-slate-600"
+          >
+            Risk Register
+          </Link>
           <Link
             href="/timeline"
             className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium dark:border-slate-600"
@@ -135,6 +162,8 @@ export default function DashboardPage() {
           </Link>
         </div>
       </header>
+
+      {streams.length > 0 && <PortfolioSummary streams={streams} />}
 
       {showStreamManager && (
         <StreamManager streams={streams} onChanged={load} />
@@ -214,8 +243,43 @@ export default function DashboardPage() {
   );
 }
 
+function RagTrend({ current, previous }: { current: Rag; previous: Rag | null }) {
+  if (!previous || previous === current) return null;
+  const worse = RAG_SEVERITY[current] > RAG_SEVERITY[previous];
+  return (
+    <span
+      title={`Sebelumnya: ${RAG_LABEL[previous]} → sekarang ${RAG_LABEL[current]}`}
+      className={`text-xs font-bold ${worse ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400"}`}
+    >
+      {worse ? "▲" : "▼"}
+    </span>
+  );
+}
+
 function InitiativeCard({ initiative }: { initiative: DashInitiative }) {
   const u = initiative.latestUpdate;
+  const stale = isStale(initiative);
+  const [showHistory, setShowHistory] = useState(false);
+  const [history, setHistory] = useState<Update[] | null>(null);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+
+  async function toggleHistory() {
+    if (showHistory) {
+      setShowHistory(false);
+      return;
+    }
+    setShowHistory(true);
+    if (history !== null) return;
+    setLoadingHistory(true);
+    try {
+      const res = await fetch(`/api/updates?initiativeId=${initiative.id}`, { cache: "no-store" });
+      const data = await res.json();
+      setHistory(((data.updates ?? []) as Update[]).slice(1));
+    } finally {
+      setLoadingHistory(false);
+    }
+  }
+
   return (
     <div className="rounded-lg border border-slate-200 p-3 dark:border-slate-700">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
@@ -251,6 +315,7 @@ function InitiativeCard({ initiative }: { initiative: DashInitiative }) {
           {u ? (
             <span className="flex items-center gap-2">
               <span className="text-xs text-slate-400">{u.period_label}</span>
+              <RagTrend current={u.rag} previous={initiative.previousRag} />
               <span
                 title="RAG update biweekly"
                 className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${RAG_STYLE[u.rag]}`}
@@ -262,6 +327,23 @@ function InitiativeCard({ initiative }: { initiative: DashInitiative }) {
             <span className="rounded-full bg-slate-200 px-2.5 py-0.5 text-xs font-medium text-slate-600 dark:bg-slate-700 dark:text-slate-300">
               Belum ada update
             </span>
+          )}
+          {stale && (
+            <span
+              title="Tidak ada update baru dalam >21 hari — cek dengan PIC"
+              className="rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-medium text-orange-800 dark:bg-orange-500/20 dark:text-orange-300"
+            >
+              ⏱ Belum update
+            </span>
+          )}
+          {initiative.updateCount > 0 && (
+            <button
+              type="button"
+              onClick={toggleHistory}
+              className="rounded-full border border-slate-300 px-2.5 py-0.5 text-xs font-medium text-slate-600 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800"
+            >
+              {showHistory ? "Sembunyikan" : `Riwayat (${initiative.updateCount})`}
+            </button>
           )}
           <Link
             href={`/input?initiativeId=${initiative.id}`}
@@ -279,6 +361,31 @@ function InitiativeCard({ initiative }: { initiative: DashInitiative }) {
           <Field label="Risk / Issue" value={u.risk_issue} />
           <Field label="Unlocking Needed" value={u.unlocking_needed} className="sm:col-span-2" />
         </dl>
+      )}
+      {showHistory && (
+        <div className="mt-3 flex flex-col gap-2 border-t border-slate-200 pt-3 dark:border-slate-700">
+          {loadingHistory ? (
+            <p className="text-xs text-slate-400">Memuat riwayat…</p>
+          ) : history && history.length > 0 ? (
+            history.map((h) => (
+              <div key={h.id} className="rounded-md bg-slate-50 p-2 text-xs dark:bg-slate-800/60">
+                <div className="mb-1 flex items-center gap-2">
+                  <span className="font-medium text-slate-600 dark:text-slate-300">
+                    {h.period_label}
+                  </span>
+                  <span className={`rounded-full px-2 py-0.5 font-medium ${RAG_STYLE[h.rag]}`}>
+                    {RAG_LABEL[h.rag]}
+                  </span>
+                </div>
+                <p className="whitespace-pre-wrap text-slate-500 dark:text-slate-400">
+                  {h.key_highlight || "—"}
+                </p>
+              </div>
+            ))
+          ) : (
+            <p className="text-xs text-slate-400">Belum ada update periode sebelumnya.</p>
+          )}
+        </div>
       )}
     </div>
   );
@@ -298,6 +405,109 @@ function Field({
       <dt className="text-xs font-semibold uppercase tracking-wide text-slate-400">{label}</dt>
       <dd className="whitespace-pre-wrap text-slate-700 dark:text-slate-200">{value || "—"}</dd>
     </div>
+  );
+}
+
+function PortfolioSummary({ streams }: { streams: DashStream[] }) {
+  const initiatives = allInitiatives(streams);
+  const total = initiatives.length;
+  const counts: Record<Rag, number> = { green: 0, amber: 0, red: 0 };
+  let noUpdate = 0;
+  let stale = 0;
+  for (const init of initiatives) {
+    if (init.latestUpdate) counts[init.latestUpdate.rag]++;
+    else noUpdate++;
+    if (isStale(init)) stale++;
+  }
+  const onTrackPct = total > 0 ? Math.round((counts.green / total) * 100) : 0;
+
+  const tiles: { label: string; value: number; className: string; title?: string }[] = [
+    {
+      label: "Total Initiative",
+      value: total,
+      className: "text-slate-900 dark:text-slate-100",
+    },
+    {
+      label: "On Track (Green)",
+      value: counts.green,
+      className: "text-green-700 dark:text-green-400",
+      title: `${onTrackPct}% dari total`,
+    },
+    { label: "Amber", value: counts.amber, className: "text-amber-700 dark:text-amber-400" },
+    { label: "Red", value: counts.red, className: "text-red-700 dark:text-red-400" },
+    {
+      label: "Belum Update >21 Hari",
+      value: stale,
+      className: "text-orange-700 dark:text-orange-400",
+      title: noUpdate > 0 ? `Termasuk ${noUpdate} yang belum pernah diisi sama sekali` : undefined,
+    },
+  ];
+
+  return (
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+      {tiles.map((t) => (
+        <div
+          key={t.label}
+          title={t.title}
+          className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-700 dark:bg-slate-900"
+        >
+          <div className={`text-2xl font-bold ${t.className}`}>{t.value}</div>
+          <div className="text-xs text-slate-500 dark:text-slate-400">{t.label}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ExportButton({ streams }: { streams: DashStream[] }) {
+  const [running, setRunning] = useState(false);
+
+  async function run() {
+    setRunning(true);
+    try {
+      const XLSX = await import("xlsx");
+      const rows = streams.flatMap((stream) =>
+        stream.applications.flatMap((app) =>
+          app.initiatives.map((init) => {
+            const u = init.latestUpdate;
+            return {
+              Stream: stream.name,
+              Application: app.name,
+              Initiative: init.name,
+              PIC: init.pic,
+              "Tracker Phase": init.current_phase,
+              "Tracker RAG": RAG_LABEL[init.current_rag],
+              Periode: u?.period_label ?? "",
+              "RAG Update": u ? RAG_LABEL[u.rag] : "Belum ada update",
+              "Key Highlight": u?.key_highlight ?? "",
+              "Progress Last 2 Weeks": u?.progress_last_2wk ?? "",
+              "Plan Next 2 Weeks": u?.plan_next_2wk ?? "",
+              "Risk / Issue": u?.risk_issue ?? "",
+              "Unlocking Needed": u?.unlocking_needed ?? "",
+              "Belum Update >21 Hari": isStale(init) ? "Ya" : "",
+            };
+          })
+        )
+      );
+      const sheet = XLSX.utils.json_to_sheet(rows);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, sheet, "PMO Dashboard");
+      const today = new Date().toISOString().slice(0, 10);
+      XLSX.writeFile(workbook, `pmo-dashboard-${today}.xlsx`);
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={run}
+      disabled={running || streams.length === 0}
+      className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium disabled:opacity-50 dark:border-slate-600"
+    >
+      {running ? "Menyiapkan…" : "Export Excel"}
+    </button>
   );
 }
 

@@ -154,6 +154,12 @@ export default function TimelinePage() {
             Ke Dashboard
           </Link>
           <Link
+            href="/risks"
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium dark:border-slate-600"
+          >
+            Risk Register
+          </Link>
+          <Link
             href="/input"
             className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white dark:bg-slate-100 dark:text-slate-900"
           >

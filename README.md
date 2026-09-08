@@ -16,6 +16,25 @@ orang buka link yang sama untuk input update atau lihat dashboard.
   RAG (Green/Amber/Red).
 - **Dashboard** — semua initiative dikelompokkan per Stream → Application, tampil update
   terbaru tiap initiative. Bisa difilter by RAG status atau dicari by nama/PIC.
+- **Portfolio health summary** — strip angka di atas dashboard (total initiative,
+  Green/Amber/Red, dan yang belum update >21 hari) supaya kondisi portfolio kelihatan
+  sekali lihat, tanpa harus scroll — pola yang umum dipakai tool portfolio management
+  (Monday.com, Smartsheet, dsb).
+- **Indikator update basi ("stale")** — initiative yang belum di-update lebih dari 21 hari
+  (lebih dari satu siklus biweekly) ditandai otomatis di dashboard, supaya PIC yang belum
+  lapor ketahuan tanpa perlu dicek satu-satu.
+- **Trend RAG** — panah ▲/▼ di sebelah badge RAG kalau statusnya berubah dari update
+  sebelumnya (▲ memburuk, ▼ membaik), jadi kelihatan arah initiative, bukan cuma titik
+  statusnya sekarang.
+- **Riwayat update per initiative** — tombol "Riwayat" di tiap card untuk buka update-update
+  periode sebelumnya (data historisnya sudah tersimpan di database, sebelumnya cuma yang
+  terbaru yang ditampilkan).
+- **Risk & Issue Register (`/risks`)** — daftar semua initiative berstatus Amber/Red atau
+  yang punya catatan Risk/Issue, dikumpulkan jadi satu halaman untuk memudahkan follow-up
+  unlocking — tanpa perlu buka tiap stream satu-satu di dashboard.
+- **Export ke Excel** — tombol "Export Excel" di dashboard untuk unduh kondisi portfolio
+  (sesuai filter yang sedang aktif) sebagai `.xlsx`, siap dipakai bahan susun deck biweekly
+  manual.
 - **Stream fleksibel** — daftar Stream bisa ditambah, diganti nama, diurutkan ulang, atau
   diarsipkan langsung dari dashboard (tombol "Kelola Stream") — tidak hardcode di kode,
   jadi kalau nama/jumlah stream berubah, tidak perlu deploy ulang.
@@ -31,8 +50,10 @@ orang buka link yang sama untuk input update atau lihat dashboard.
   awal, satu lagi untuk mensimulasikan import narasi update dari deck biweekly.
 
 **Belum ada (sengaja ditunda):** auto-generate ke deck PowerPoint, dan notifikasi
-follow-up untuk risk/action item. Untuk sekarang, isi deck biweekly tetap manual dengan
-cara lihat dashboard lalu copy kontennya.
+follow-up otomatis (email/Slack) untuk risk/action item — halaman Risk Register dan
+export Excel di atas jadi langkah awal ke arah situ, tapi kirim notifikasinya sendiri
+masih manual. Isi deck biweekly juga tetap manual: lihat dashboard atau hasil export,
+lalu copy kontennya.
 
 ## Stack
 

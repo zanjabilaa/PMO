@@ -46,13 +46,16 @@ orang buka link yang sama untuk input update atau lihat dashboard.
 - **Stream fleksibel** — daftar Stream bisa ditambah, diganti nama, diurutkan ulang, atau
   diarsipkan langsung dari dashboard (tombol "Kelola Stream") — tidak hardcode di kode,
   jadi kalau nama/jumlah stream berubah, tidak perlu deploy ulang.
-- **Upload Excel tracker** — di panel "Kelola Stream", upload file `.xlsx` tracker (sheet
-  "2. All Project 2026") kapan saja untuk sinkronkan Stream/Application/Initiative beserta
-  status RAG & Phase-nya, tanpa input manual satu-satu. Aman diulang tiap tracker-nya
-  di-update — parsing terjadi di browser, file tidak pernah disimpan di server. Kolom
-  dideteksi dari teks header (Stream, Application, Project/Initiative Name, TPO, Delivery
-  Lead, Timeline Status, Actual Phase), bukan posisi tetap, jadi tahan kalau kolom di
-  tracker digeser/ditambah.
+- **Upload Excel tracker** — di panel "Kelola Stream", upload file `.xlsx` tracker kapan saja
+  untuk sinkronkan Stream/Application/Initiative beserta status RAG & Phase-nya, tanpa input
+  manual satu-satu. Sheet-nya dipilih dari dropdown setelah file terbaca (bukan nama yang
+  di-hardcode) — otomatis ditebak duluan kalau ada sheet bernama mengandung "all project",
+  tapi bisa diganti manual, karena nama sheet tracker biasanya berubah tiap cycle (mis. beda
+  nomor minggu/tahun) sementara struktur kolomnya relatif stabil. Kolom sendiri dideteksi
+  dari teks header (Stream, Application, Project/Initiative Name, Owner/TPO, Delivery Lead,
+  Timeline Status, Actual Phase), bukan posisi tetap, jadi tahan kalau kolom di tracker
+  digeser/ditambah. Aman diulang tiap tracker-nya di-update — parsing terjadi di browser,
+  file tidak pernah disimpan di server.
 - **Timeline (`/timeline`)** — tampilan Gantt bulanan per initiative (Jan-Des), tiap sel
   bulan diklik langsung untuk ganti status (kosong → Dev/UAT → Prep Go Live/Go Live →
   Hypercare → Delay).

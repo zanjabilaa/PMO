@@ -1,7 +1,5 @@
 import type { Rag } from "@/lib/db";
-
-// Sheet name in the PMO Excel tracker that holds the full project list.
-const SHEET_NAME = "2. All Project 2026";
+import type { WorkBook } from "xlsx";
 
 const RAG_MAP: Record<string, Rag> = { green: "green", amber: "amber", red: "red" };
 
@@ -28,17 +26,32 @@ function findColumn(headerRow: unknown[], patterns: RegExp[]): number {
   return -1;
 }
 
-export async function parseTrackerWorkbook(buffer: ArrayBuffer): Promise<ParsedStream[]> {
+// Reads the workbook only — which sheet to parse is a separate, explicit
+// choice (see parseTrackerSheet), since the tracker's sheet name tends to
+// change every cycle (e.g. carries a week number) while its column layout
+// stays comparatively stable.
+export async function readTrackerWorkbook(buffer: ArrayBuffer): Promise<WorkBook> {
   const XLSX = await import("xlsx");
   const workbook = XLSX.read(buffer, { type: "array" });
-  const sheet = workbook.Sheets[SHEET_NAME];
+  if (workbook.SheetNames.length === 0) {
+    throw new Error("File ini tidak punya sheet apa pun.");
+  }
+  return workbook;
+}
+
+export async function parseTrackerSheet(
+  workbook: WorkBook,
+  sheetName: string
+): Promise<ParsedStream[]> {
+  const sheet = workbook.Sheets[sheetName];
   if (!sheet) {
-    const available = workbook.SheetNames.join(", ") || "(tidak ada sheet)";
-    throw new Error(
-      `Sheet "${SHEET_NAME}" tidak ditemukan di file ini. Sheet yang tersedia: ${available}.`
-    );
+    throw new Error(`Sheet "${sheetName}" tidak ditemukan di file ini.`);
   }
 
+  // The module is already loaded at this point (readTrackerWorkbook awaited
+  // it first) — dynamic import returns the cached module instantly, so this
+  // doesn't re-fetch or re-parse anything.
+  const XLSX = await import("xlsx");
   const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as unknown[][];
 
   let headerRowIndex = -1;
@@ -57,7 +70,7 @@ export async function parseTrackerWorkbook(buffer: ArrayBuffer): Promise<ParsedS
   }
   if (headerRowIndex === -1) {
     throw new Error(
-      `Baris header tidak dikenali di sheet "${SHEET_NAME}" (dicek 20 baris pertama). Pastikan ` +
+      `Baris header tidak dikenali di sheet "${sheetName}" (dicek 20 baris pertama). Pastikan ` +
         `ada kolom berlabel "Stream" dan kolom nama project/initiative (mis. "Project/Initiative Name").`
     );
   }
@@ -65,9 +78,7 @@ export async function parseTrackerWorkbook(buffer: ArrayBuffer): Promise<ParsedS
   const headerRow = rows[headerRowIndex] ?? [];
   const applicationCol = findColumn(headerRow, [/^application$/, /application/]);
   if (applicationCol === -1) {
-    throw new Error(
-      `Kolom "Application" tidak ditemukan di baris header sheet "${SHEET_NAME}".`
-    );
+    throw new Error(`Kolom "Application" tidak ditemukan di baris header sheet "${sheetName}".`);
   }
   const ownerCol = findColumn(headerRow, [/^owner$/, /^tpo$/]);
   const deliveryLeadCol = findColumn(headerRow, [/delivery.*lead/]);

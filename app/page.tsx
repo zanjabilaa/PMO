@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { Rag } from "@/lib/db";
-import { parseTrackerWorkbook } from "@/lib/excel-import";
+import { readTrackerWorkbook, parseTrackerSheet } from "@/lib/excel-import";
+import type { WorkBook } from "xlsx";
 
 type Update = {
   id: number;
@@ -78,6 +79,25 @@ function isStale(initiative: DashInitiative): boolean {
 
 function allInitiatives(streams: DashStream[]): DashInitiative[] {
   return streams.flatMap((s) => s.applications.flatMap((a) => a.initiatives));
+}
+
+// Guesses which sheet holds the raw project list, tried in priority order.
+// A plain "contains 'all project'" match also catches summary/pivot sheets
+// like "1. Summary All Project 2026" — excluding "summary" first avoids
+// landing on those before the actual data sheet (e.g. "2. All Project
+// 2026"). Whatever is guessed, the user still sees and can override it.
+function guessTrackerSheet(sheetNames: string[]): string {
+  const lower = sheetNames.map((n) => n.toLowerCase());
+  const tiers = [
+    (n: string) => /^\d+\.\s*all project/.test(n),
+    (n: string) => n.includes("all project") && !n.includes("summary"),
+    (n: string) => n.includes("all project"),
+  ];
+  for (const matches of tiers) {
+    const index = lower.findIndex(matches);
+    if (index !== -1) return sheetNames[index];
+  }
+  return sheetNames[0];
 }
 
 export default function DashboardPage() {
@@ -643,6 +663,12 @@ function ImportDeckButton({ onDone }: { onDone: () => void }) {
 
 function ExcelUploadButton({ onDone }: { onDone: () => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const [pending, setPending] = useState<{
+    workbook: WorkBook;
+    sheetNames: string[];
+    selectedSheet: string;
+  } | null>(null);
+  const [reading, setReading] = useState(false);
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState("");
   const [error, setError] = useState("");
@@ -652,14 +678,36 @@ function ExcelUploadButton({ onDone }: { onDone: () => void }) {
     e.target.value = "";
     if (!file) return;
 
+    setReading(true);
+    setError("");
+    setResult("");
+    setPending(null);
+    try {
+      const buffer = await file.arrayBuffer();
+      const workbook = await readTrackerWorkbook(buffer);
+      setPending({
+        workbook,
+        sheetNames: workbook.SheetNames,
+        selectedSheet: guessTrackerSheet(workbook.SheetNames),
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gagal membaca file Excel.");
+    } finally {
+      setReading(false);
+    }
+  }
+
+  async function confirmSync() {
+    if (!pending) return;
     setRunning(true);
     setError("");
     setResult("");
     try {
-      const buffer = await file.arrayBuffer();
-      const streams = await parseTrackerWorkbook(buffer);
+      const streams = await parseTrackerSheet(pending.workbook, pending.selectedSheet);
       if (streams.length === 0) {
-        throw new Error("Tidak ada baris valid yang ditemukan di sheet tracker.");
+        throw new Error(
+          `Tidak ada baris valid yang ditemukan di sheet "${pending.selectedSheet}". Coba pilih sheet lain.`
+        );
       }
 
       const res = await fetch("/api/import-excel", {
@@ -670,11 +718,12 @@ function ExcelUploadButton({ onDone }: { onDone: () => void }) {
       if (!res.ok) throw new Error("Gagal mengunggah data ke server.");
       const data = await res.json();
       setResult(
-        `${data.streamCount} stream, ${data.appCount} application, ${data.initiativeCount} initiative disinkronkan dari file.`
+        `${data.streamCount} stream, ${data.appCount} application, ${data.initiativeCount} initiative disinkronkan dari sheet "${pending.selectedSheet}".`
       );
+      setPending(null);
       onDone();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Gagal membaca file Excel.");
+      setError(err instanceof Error ? err.message : "Gagal menyinkronkan data.");
     } finally {
       setRunning(false);
     }
@@ -689,14 +738,51 @@ function ExcelUploadButton({ onDone }: { onDone: () => void }) {
         onChange={handleFile}
         className="hidden"
       />
-      <button
-        type="button"
-        onClick={() => inputRef.current?.click()}
-        disabled={running}
-        className="self-start rounded-lg bg-slate-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50 dark:bg-slate-100 dark:text-slate-900"
-      >
-        {running ? "Memproses file…" : "Upload Excel tracker (.xlsx)"}
-      </button>
+      {!pending ? (
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          disabled={reading}
+          className="self-start rounded-lg bg-slate-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50 dark:bg-slate-100 dark:text-slate-900"
+        >
+          {reading ? "Membaca file…" : "Upload Excel tracker (.xlsx)"}
+        </button>
+      ) : (
+        <div className="flex flex-col gap-2 rounded-lg border border-dashed border-slate-300 p-3 dark:border-slate-600">
+          <label className="text-xs font-medium text-slate-600 dark:text-slate-400">
+            Sheet mana yang mau disinkronkan?
+          </label>
+          <select
+            value={pending.selectedSheet}
+            onChange={(e) => setPending({ ...pending, selectedSheet: e.target.value })}
+            className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-800"
+          >
+            {pending.sheetNames.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </select>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={confirmSync}
+              disabled={running}
+              className="rounded-lg bg-slate-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50 dark:bg-slate-100 dark:text-slate-900"
+            >
+              {running ? "Menyinkronkan…" : "Sinkronkan"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setPending(null)}
+              disabled={running}
+              className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm dark:border-slate-600"
+            >
+              Batal
+            </button>
+          </div>
+        </div>
+      )}
       {result && <p className="text-sm text-green-700 dark:text-green-400">{result}</p>}
       {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
     </div>
@@ -854,10 +940,11 @@ function StreamManager({
       </div>
       <div className="border-t border-slate-200 pt-3 dark:border-slate-700">
         <p className="mb-2 text-xs text-slate-500 dark:text-slate-400">
-          Upload file tracker Excel terbaru (.xlsx, sheet &quot;2. All Project 2026&quot;)
-          kapan saja untuk sinkronkan Stream/Application/Initiative beserta status RAG
-          &amp; Phase-nya — tidak perlu input manual satu-satu, dan aman diulang tiap
-          tracker di-update.
+          Upload file tracker Excel terbaru (.xlsx) kapan saja untuk sinkronkan
+          Stream/Application/Initiative beserta status RAG &amp; Phase-nya — pilih sheet-nya
+          setelah file terbaca (otomatis ditebak duluan kalau ada sheet bernama &quot;all
+          project&quot;), tidak perlu input manual satu-satu, dan aman diulang tiap tracker
+          di-update.
         </p>
         <ExcelUploadButton onDone={onChanged} />
       </div>

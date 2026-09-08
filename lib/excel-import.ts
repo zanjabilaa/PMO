@@ -69,7 +69,7 @@ export async function parseTrackerWorkbook(buffer: ArrayBuffer): Promise<ParsedS
       `Kolom "Application" tidak ditemukan di baris header sheet "${SHEET_NAME}".`
     );
   }
-  const tpoCol = findColumn(headerRow, [/^tpo$/]);
+  const ownerCol = findColumn(headerRow, [/^owner$/, /^tpo$/]);
   const deliveryLeadCol = findColumn(headerRow, [/delivery.*lead/]);
   const timelineStatusCol = findColumn(headerRow, [/timeline.*status/, /^status$/]);
   const actualPhaseCol = findColumn(headerRow, [/actual.*phase/, /^phase$/]);
@@ -84,7 +84,7 @@ export async function parseTrackerWorkbook(buffer: ArrayBuffer): Promise<ParsedS
     if (!stream || !application || !initiative) continue;
 
     const pic =
-      (tpoCol !== -1 ? cell(row, tpoCol) : "") ||
+      (ownerCol !== -1 ? cell(row, ownerCol) : "") ||
       (deliveryLeadCol !== -1 ? cell(row, deliveryLeadCol) : "");
     const rag =
       timelineStatusCol !== -1

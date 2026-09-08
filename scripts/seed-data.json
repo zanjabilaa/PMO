@@ -1,0 +1,79 @@
+[
+  {
+    "stream": "Consumer Experience",
+    "applications": [
+      {
+        "name": "Mobile App",
+        "initiatives": [
+          { "name": "Loyalty Program Revamp", "pic": "Andi" },
+          { "name": "Push Notification Personalization", "pic": "Citra" }
+        ]
+      },
+      {
+        "name": "Website",
+        "initiatives": [
+          { "name": "Checkout Redesign", "pic": "Budi" },
+          { "name": "Search Relevance Improvement", "pic": "Dewi" },
+          { "name": "Guest Checkout Flow", "pic": "Budi" }
+        ]
+      }
+    ]
+  },
+  {
+    "stream": "Merchant Platform",
+    "applications": [
+      {
+        "name": "Merchant Dashboard",
+        "initiatives": [
+          { "name": "Bulk Product Upload", "pic": "Eka" },
+          { "name": "Merchant Analytics V2", "pic": "Farhan" }
+        ]
+      },
+      {
+        "name": "Onboarding",
+        "initiatives": [
+          { "name": "KYC Automation", "pic": "Gilang" },
+          { "name": "Self-Service Onboarding Flow", "pic": "Andi" }
+        ]
+      }
+    ]
+  },
+  {
+    "stream": "Supply Chain",
+    "applications": [
+      {
+        "name": "Warehouse Management",
+        "initiatives": [
+          { "name": "Pick-Pack Optimization", "pic": "Hana" },
+          { "name": "Inventory Sync Realtime", "pic": "Indra" }
+        ]
+      },
+      {
+        "name": "Logistics",
+        "initiatives": [
+          { "name": "Last-Mile Route Optimization", "pic": "Joko" },
+          { "name": "Vendor SLA Dashboard", "pic": "Hana" }
+        ]
+      }
+    ]
+  },
+  {
+    "stream": "Data & Analytics",
+    "applications": [
+      {
+        "name": "BI Platform",
+        "initiatives": [
+          { "name": "Executive Dashboard Revamp", "pic": "Kirana" },
+          { "name": "Data Quality Monitoring", "pic": "Lestari" }
+        ]
+      },
+      {
+        "name": "ML Platform",
+        "initiatives": [
+          { "name": "Churn Prediction Model", "pic": "Maya" },
+          { "name": "Recommendation Engine V3", "pic": "Indra" }
+        ]
+      }
+    ]
+  }
+]

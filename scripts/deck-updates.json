@@ -1,0 +1,80 @@
+[
+  {
+    "stream": "Consumer Experience",
+    "periodLabel": "1 – 14 Aug 2026 (W31-W32)",
+    "entries": [
+      {
+        "application": "Mobile App",
+        "initiative": "Loyalty Program Revamp",
+        "pic": "Andi",
+        "rag": "green",
+        "keyHighlight": "",
+        "progressLast2wk": "Finalized tier structure (Bronze/Silver/Gold). Completed backend point-calculation service (05/08).",
+        "planNext2wk": "UAT with 5 pilot users (Target: 18/08). Prepare rollout communication plan.",
+        "riskIssue": "-",
+        "unlockingNeeded": "-"
+      },
+      {
+        "application": "Mobile App",
+        "initiative": "Push Notification Personalization",
+        "pic": "Citra",
+        "rag": "amber",
+        "keyHighlight": "",
+        "progressLast2wk": "Segmentation logic drafted with Data team.",
+        "planNext2wk": "Integrate with notification service (Target: 20/08).",
+        "riskIssue": "Vendor API rate limit lower than expected — may need to batch sends.",
+        "unlockingNeeded": "Confirmation from vendor on rate limit upgrade options."
+      },
+      {
+        "application": "Website",
+        "initiative": "Checkout Redesign",
+        "pic": "Budi",
+        "rag": "green",
+        "keyHighlight": "",
+        "progressLast2wk": "Design sign-off from Brand team (06/08). Dev started on payment step.",
+        "planNext2wk": "Complete address & payment steps (Target: 21/08).",
+        "riskIssue": "-",
+        "unlockingNeeded": "-"
+      },
+      {
+        "application": "Website",
+        "initiative": "One-Click Reorder",
+        "pic": "Dewi",
+        "rag": "green",
+        "keyHighlight": "On Going: Scoping discussion with Product team (Target: TBC). Next action: Confirm eligible order types with Ops (Target: 15/08).",
+        "progressLast2wk": "",
+        "planNext2wk": "",
+        "riskIssue": "",
+        "unlockingNeeded": ""
+      }
+    ]
+  },
+  {
+    "stream": "Supply Chain",
+    "periodLabel": "1 – 14 Aug 2026 (W31-W32)",
+    "entries": [
+      {
+        "application": "Warehouse Management",
+        "initiative": "Pick-Pack Optimization",
+        "pic": "Hana",
+        "rag": "red",
+        "keyHighlight": "",
+        "progressLast2wk": "Pilot run at Warehouse 2 delayed due to hardware scanner shortage.",
+        "planNext2wk": "Escalate scanner procurement. Re-plan pilot for W35.",
+        "riskIssue": "Scanner vendor delivery delayed 2 weeks — pushes pilot timeline.",
+        "unlockingNeeded": "Approval for expedited shipping cost from Ops Lead."
+      },
+      {
+        "application": "Logistics",
+        "initiative": "Last-Mile Route Optimization",
+        "pic": "Joko",
+        "rag": "green",
+        "keyHighlight": "",
+        "progressLast2wk": "Route optimization algorithm benchmarked against 3rd-party provider — internal solution 8% more efficient.",
+        "planNext2wk": "Integrate with dispatch system (Target: 25/08).",
+        "riskIssue": "-",
+        "unlockingNeeded": "-"
+      }
+    ]
+  }
+]

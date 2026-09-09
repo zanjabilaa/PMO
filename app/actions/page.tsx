@@ -150,6 +150,12 @@ export default function ActionItemsPage() {
             Documents
           </Link>
           <Link
+            href="/report"
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium dark:border-slate-600"
+          >
+            Weekly Report
+          </Link>
+          <Link
             href="/timeline"
             className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium dark:border-slate-600"
           >

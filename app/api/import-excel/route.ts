@@ -13,7 +13,7 @@ export const maxDuration = 60;
 const VALID_RAG: Rag[] = ["green", "amber", "red"];
 
 type PayloadInitiative = { name: string; pic: string; rag: Rag; phase: string };
-type PayloadApplication = { name: string; initiatives: PayloadInitiative[] };
+type PayloadApplication = { name: string; subStream?: string; initiatives: PayloadInitiative[] };
 type PayloadStream = { stream: string; applications: PayloadApplication[] };
 
 // A full tracker upload can carry hundreds of initiatives across dozens of
@@ -65,15 +65,19 @@ export async function POST(request: Request) {
 
   const appJobs = validStreams.flatMap((s) =>
     (s.applications ?? [])
-      .map((a) => ({ name: typeof a.name === "string" ? a.name.trim() : "", initiatives: a.initiatives }))
-      .filter((a): a is { name: string; initiatives: PayloadInitiative[] } =>
+      .map((a) => ({
+        name: typeof a.name === "string" ? a.name.trim() : "",
+        subStream: typeof a.subStream === "string" ? a.subStream.trim() : "",
+        initiatives: a.initiatives,
+      }))
+      .filter((a): a is { name: string; subStream: string; initiatives: PayloadInitiative[] } =>
         Boolean(a.name) && Array.isArray(a.initiatives)
       )
       .map((a) => ({ streamId: streamIdByName.get(s.stream)!, ...a }))
   );
 
   const appRows = await mapWithConcurrency(appJobs, 15, (job) =>
-    upsertApplication(job.streamId, job.name)
+    upsertApplication(job.streamId, job.name, job.subStream)
   );
   const appRowByJobIndex = new Map<number, Application>(appRows.map((row, i) => [i, row]));
 

@@ -4,7 +4,7 @@ import type { WorkBook } from "xlsx";
 const RAG_MAP: Record<string, Rag> = { green: "green", amber: "amber", red: "red" };
 
 export type ParsedInitiative = { name: string; pic: string; rag: Rag; phase: string };
-export type ParsedApplication = { name: string; initiatives: ParsedInitiative[] };
+export type ParsedApplication = { name: string; subStream: string; initiatives: ParsedInitiative[] };
 export type ParsedStream = { stream: string; applications: ParsedApplication[] };
 
 function cell(row: unknown[], index: number): string {
@@ -84,8 +84,12 @@ export async function parseTrackerSheet(
   const deliveryLeadCol = findColumn(headerRow, [/delivery.*lead/]);
   const timelineStatusCol = findColumn(headerRow, [/timeline.*status/, /^status$/]);
   const actualPhaseCol = findColumn(headerRow, [/actual.*phase/, /^phase$/]);
+  const subStreamCol = findColumn(headerRow, [/sub.?stream/]);
 
-  const streamMap = new Map<string, Map<string, Map<string, ParsedInitiative>>>();
+  const streamMap = new Map<
+    string,
+    Map<string, { subStream: string; initiatives: Map<string, ParsedInitiative> }>
+  >();
 
   for (let i = headerRowIndex + 1; i < rows.length; i++) {
     const row = rows[i] ?? [];
@@ -102,20 +106,26 @@ export async function parseTrackerSheet(
         ? (RAG_MAP[cell(row, timelineStatusCol).toLowerCase()] ?? "green")
         : "green";
     const phase = actualPhaseCol !== -1 ? cell(row, actualPhaseCol) : "";
+    const subStream = subStreamCol !== -1 ? cell(row, subStreamCol) : "";
 
     if (!streamMap.has(stream)) streamMap.set(stream, new Map());
     const appMap = streamMap.get(stream)!;
-    if (!appMap.has(application)) appMap.set(application, new Map());
-    // Later rows win when the same initiative repeats across backlog-item
-    // rows, so the imported status reflects the last (most complete) row.
-    appMap.get(application)!.set(initiative, { name: initiative, pic, rag, phase });
+    if (!appMap.has(application)) {
+      appMap.set(application, { subStream, initiatives: new Map() });
+    }
+    const appEntry = appMap.get(application)!;
+    // Later rows win when the same initiative (or sub-stream label) repeats
+    // across backlog-item rows, so the imported status reflects the last
+    // (most complete) row.
+    if (subStream) appEntry.subStream = subStream;
+    appEntry.initiatives.set(initiative, { name: initiative, pic, rag, phase });
   }
 
   const result: ParsedStream[] = [];
   for (const [stream, appMap] of streamMap) {
     const applications: ParsedApplication[] = [];
-    for (const [application, initMap] of appMap) {
-      applications.push({ name: application, initiatives: Array.from(initMap.values()) });
+    for (const [application, { subStream, initiatives }] of appMap) {
+      applications.push({ name: application, subStream, initiatives: Array.from(initiatives.values()) });
     }
     result.push({ stream, applications });
   }

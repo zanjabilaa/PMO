@@ -45,6 +45,14 @@ async function createSchema() {
       UNIQUE(stream_id, name)
     )
   `;
+  // Metadata only — the tracker's "Sub Stream" column groups applications
+  // under a theme between Stream and Application (e.g. "Unified Experience
+  // Platform"), but isn't promoted to its own hierarchy level to avoid a
+  // bigger migration; it's just carried through from Excel import for
+  // display/export.
+  await sql`
+    ALTER TABLE applications ADD COLUMN IF NOT EXISTS sub_stream TEXT NOT NULL DEFAULT ''
+  `;
   await sql`
     CREATE TABLE IF NOT EXISTS initiatives (
       id SERIAL PRIMARY KEY,
@@ -175,6 +183,7 @@ export type Application = {
   id: number;
   stream_id: number;
   name: string;
+  sub_stream: string;
   created_at: string;
 };
 
@@ -261,13 +270,16 @@ export async function upsertStream(name: string): Promise<Stream> {
 
 export async function upsertApplication(
   streamId: number,
-  name: string
+  name: string,
+  subStream: string = ""
 ): Promise<Application> {
   const [application] = (await sql`
-    INSERT INTO applications (stream_id, name)
-    VALUES (${streamId}, ${name})
-    ON CONFLICT (stream_id, name) DO UPDATE SET name = EXCLUDED.name
-    RETURNING id, stream_id, name, created_at
+    INSERT INTO applications (stream_id, name, sub_stream)
+    VALUES (${streamId}, ${name}, ${subStream})
+    ON CONFLICT (stream_id, name) DO UPDATE SET
+      name = EXCLUDED.name,
+      sub_stream = CASE WHEN EXCLUDED.sub_stream <> '' THEN EXCLUDED.sub_stream ELSE applications.sub_stream END
+    RETURNING id, stream_id, name, sub_stream, created_at
   `) as Application[];
   return application;
 }

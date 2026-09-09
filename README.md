@@ -15,7 +15,18 @@ orang buka link yang sama untuk input update atau lihat dashboard.
   Progress Last 2 Weeks, Plan Next 2 Weeks, Risk/Issue, Unlocking Needed, plus status
   RAG (Green/Amber/Red).
 - **Dashboard** — semua initiative dikelompokkan per Stream → Application, tampil update
-  terbaru tiap initiative. Bisa difilter by RAG status atau dicari by nama/PIC.
+  terbaru tiap initiative. Bisa difilter by RAG status atau dicari by nama/PIC. Ada dua mode
+  tampilan (tombol "Kartu"/"Tabel" di toolbar):
+  - **Kartu** — satu card per initiative, isi lengkap 5 kategori update.
+  - **Tabel** — satu baris per initiative (Stream, Sub Stream, Application, Project Name,
+    PIC, RAG, Phase, preview update terakhir, kapan terakhir update) — mirroring format
+    Excel tracker biar gampang di-scan untuk banyak initiative sekaligus. Klik **Edit** di
+    satu baris buka panel isi update tanpa pindah halaman (drawer di sisi kanan).
+- **Weekly Report (`/report`)** — daftar initiative yang punya update dalam rentang waktu
+  tertentu (default 14 hari, bisa 7/30 hari), dikelompokkan per Stream, tampil ringkas
+  Highlight/Progress/Risk per initiative. Ada tombol **Copy sebagai Teks** (siap paste ke
+  email/deck) dan **Export Excel** — supaya "kumpulin notes buat rekap report" nggak perlu
+  scroll dashboard satu-satu.
 - **Portfolio health summary** — strip angka di atas dashboard (total initiative,
   Green/Amber/Red, dan yang belum update >21 hari) supaya kondisi portfolio kelihatan
   sekali lihat, tanpa harus scroll — pola yang umum dipakai tool portfolio management
@@ -153,7 +164,7 @@ Environment Variables**.
 
 ```
 streams          (id, name, sort_order, archived)
-applications     (id, stream_id, name)
+applications     (id, stream_id, name, sub_stream)
 initiatives      (id, application_id, name, pic, current_rag, current_phase, archived)
 updates          (id, initiative_id, period_label, rag,
                    key_highlight, progress_last_2wk, plan_next_2wk,
@@ -175,4 +186,6 @@ date/owner/source, ditandai overdue kalau `due_date` sudah lewat dan `status` bu
 `done`. `document_types` (default: Project Charter, PRD, RNI) sama fleksibelnya dengan
 `streams` — bisa ditambah/diganti nama/diarsipkan dari `/documents` tanpa ubah kode;
 `document_checklist` menyimpan status tiap kombinasi initiative × document type (kalau
-belum ada baris, dianggap "Belum mulai").
+belum ada baris, dianggap "Belum mulai"). `applications.sub_stream` cuma metadata teks
+dari kolom "Sub Stream" tracker Excel (bukan level hierarki baru) — dipakai di Table View
+dan Export Excel, tidak mengubah struktur Stream → Application → Initiative yang sudah ada.

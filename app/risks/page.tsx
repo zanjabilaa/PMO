@@ -135,6 +135,12 @@ export default function RiskRegisterPage() {
             Documents
           </Link>
           <Link
+            href="/report"
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium dark:border-slate-600"
+          >
+            Weekly Report
+          </Link>
+          <Link
             href="/input"
             className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white dark:bg-slate-100 dark:text-slate-900"
           >

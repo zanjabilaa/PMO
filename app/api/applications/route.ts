@@ -9,12 +9,12 @@ export async function GET(request: Request) {
 
   const applications = streamId
     ? ((await sql`
-        SELECT id, stream_id, name, created_at FROM applications
+        SELECT id, stream_id, name, sub_stream, created_at FROM applications
         WHERE stream_id = ${streamId}
         ORDER BY name ASC
       `) as Application[])
     : ((await sql`
-        SELECT id, stream_id, name, created_at FROM applications
+        SELECT id, stream_id, name, sub_stream, created_at FROM applications
         ORDER BY name ASC
       `) as Application[]);
 

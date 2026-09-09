@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { Rag } from "@/lib/db";
 import { readTrackerWorkbook, parseTrackerSheet } from "@/lib/excel-import";
 import type { WorkBook } from "xlsx";
+import { UpdateFormPanel, type UpdateFormInitial } from "@/app/components/UpdateFormPanel";
 
 type Update = {
   id: number;
@@ -36,6 +37,7 @@ type DashInitiative = {
 type DashApplication = {
   id: number;
   name: string;
+  sub_stream: string;
   initiatives: DashInitiative[];
 };
 
@@ -81,6 +83,33 @@ function allInitiatives(streams: DashStream[]): DashInitiative[] {
   return streams.flatMap((s) => s.applications.flatMap((a) => a.initiatives));
 }
 
+function daysAgoLabel(iso: string): string {
+  const days = daysSince(iso);
+  if (days <= 0) return "Hari ini";
+  if (days === 1) return "Kemarin";
+  return `${days} hari lalu`;
+}
+
+type TableRow = {
+  streamName: string;
+  subStream: string;
+  applicationName: string;
+  initiative: DashInitiative;
+};
+
+function flattenRows(streams: DashStream[]): TableRow[] {
+  return streams.flatMap((stream) =>
+    stream.applications.flatMap((app) =>
+      app.initiatives.map((initiative) => ({
+        streamName: stream.name,
+        subStream: app.sub_stream,
+        applicationName: app.name,
+        initiative,
+      }))
+    )
+  );
+}
+
 // Guesses which sheet holds the raw project list, tried in priority order.
 // A plain "contains 'all project'" match also catches summary/pivot sheets
 // like "1. Summary All Project 2026" — excluding "summary" first avoids
@@ -100,12 +129,22 @@ function guessTrackerSheet(sheetNames: string[]): string {
   return sheetNames[0];
 }
 
+type EditingTarget = {
+  id: number;
+  name: string;
+  applicationName: string;
+  streamName: string;
+  latestUpdate: Update | null;
+};
+
 export default function DashboardPage() {
   const [streams, setStreams] = useState<DashStream[]>([]);
   const [loading, setLoading] = useState(true);
   const [ragFilter, setRagFilter] = useState<Rag | "all">("all");
   const [query, setQuery] = useState("");
   const [showStreamManager, setShowStreamManager] = useState(false);
+  const [viewMode, setViewMode] = useState<"card" | "table">("card");
+  const [editingTarget, setEditingTarget] = useState<EditingTarget | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -185,6 +224,12 @@ export default function DashboardPage() {
             Documents
           </Link>
           <Link
+            href="/report"
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium dark:border-slate-600"
+          >
+            Weekly Report
+          </Link>
+          <Link
             href="/timeline"
             className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium dark:border-slate-600"
           >
@@ -229,6 +274,22 @@ export default function DashboardPage() {
             </button>
           ))}
         </div>
+        <div className="flex gap-1 rounded-lg border border-slate-300 p-0.5 dark:border-slate-600">
+          {(["card", "table"] as const).map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => setViewMode(mode)}
+              className={`rounded-md px-3 py-1 text-sm font-medium ${
+                viewMode === mode
+                  ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900"
+                  : "text-slate-500 dark:text-slate-400"
+              }`}
+            >
+              {mode === "card" ? "Kartu" : "Tabel"}
+            </button>
+          ))}
+        </div>
       </div>
 
       {loading ? (
@@ -246,6 +307,19 @@ export default function DashboardPage() {
         </div>
       ) : filteredStreams.length === 0 ? (
         <p className="text-sm text-slate-500">Tidak ada initiative yang cocok dengan filter.</p>
+      ) : viewMode === "table" ? (
+        <TableView
+          rows={flattenRows(filteredStreams)}
+          onEdit={(row) =>
+            setEditingTarget({
+              id: row.initiative.id,
+              name: row.initiative.name,
+              applicationName: row.applicationName,
+              streamName: row.streamName,
+              latestUpdate: row.initiative.latestUpdate,
+            })
+          }
+        />
       ) : (
         <div className="flex flex-col gap-4">
           {filteredStreams.map((stream) => (
@@ -274,6 +348,17 @@ export default function DashboardPage() {
             </details>
           ))}
         </div>
+      )}
+
+      {editingTarget && (
+        <EditDrawer
+          target={editingTarget}
+          onClose={() => setEditingTarget(null)}
+          onSaved={() => {
+            setEditingTarget(null);
+            load();
+          }}
+        />
       )}
     </main>
   );
@@ -471,6 +556,128 @@ function Field({
   );
 }
 
+function TableView({
+  rows,
+  onEdit,
+}: {
+  rows: TableRow[];
+  onEdit: (row: TableRow) => void;
+}) {
+  return (
+    <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+      <table className="w-full min-w-[1000px] border-collapse text-sm">
+        <thead>
+          <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-500 dark:border-slate-700 dark:text-slate-400">
+            <th className="px-3 py-2">Stream</th>
+            <th className="px-3 py-2">Sub Stream</th>
+            <th className="px-3 py-2">Application</th>
+            <th className="px-3 py-2">Project Name</th>
+            <th className="px-3 py-2">PIC</th>
+            <th className="px-3 py-2">RAG</th>
+            <th className="px-3 py-2">Phase</th>
+            <th className="px-3 py-2">Update Terakhir</th>
+            <th className="px-3 py-2">Kapan</th>
+            <th className="px-3 py-2"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => {
+            const u = row.initiative.latestUpdate;
+            const rag = u?.rag ?? row.initiative.current_rag;
+            return (
+              <tr
+                key={row.initiative.id}
+                className="border-b border-slate-100 align-top dark:border-slate-800"
+              >
+                <td className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">
+                  {row.streamName}
+                </td>
+                <td className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">
+                  {row.subStream || "—"}
+                </td>
+                <td className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">
+                  {row.applicationName}
+                </td>
+                <td className="px-3 py-2 font-medium">{row.initiative.name}</td>
+                <td className="px-3 py-2">{row.initiative.pic || "—"}</td>
+                <td className="px-3 py-2">
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${RAG_STYLE[rag]}`}
+                  >
+                    {RAG_LABEL[rag]}
+                  </span>
+                </td>
+                <td className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">
+                  {row.initiative.current_phase || "—"}
+                </td>
+                <td className="max-w-xs truncate px-3 py-2" title={u?.key_highlight || undefined}>
+                  {u?.key_highlight || <span className="text-slate-400">Belum ada update</span>}
+                </td>
+                <td className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">
+                  {u ? daysAgoLabel(u.created_at) : "—"}
+                </td>
+                <td className="px-3 py-2">
+                  <button
+                    type="button"
+                    onClick={() => onEdit(row)}
+                    className="rounded-full border border-slate-300 px-2.5 py-0.5 text-xs font-medium text-slate-600 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800"
+                  >
+                    Edit
+                  </button>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function EditDrawer({
+  target,
+  onClose,
+  onSaved,
+}: {
+  target: {
+    id: number;
+    name: string;
+    applicationName: string;
+    streamName: string;
+    latestUpdate: Update | null;
+  };
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const initial: UpdateFormInitial = target.latestUpdate;
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end bg-black/30" onClick={onClose}>
+      <div
+        className="flex h-full w-full max-w-lg flex-col gap-4 overflow-y-auto bg-white p-4 shadow-xl dark:bg-slate-900 sm:p-6"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-bold">{target.name}</h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              {target.applicationName} · {target.streamName}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg border border-slate-300 px-2.5 py-1 text-sm dark:border-slate-600"
+          >
+            Tutup
+          </button>
+        </div>
+        <UpdateFormPanel initiativeId={target.id} initial={initial} onSaved={onSaved} />
+      </div>
+    </div>
+  );
+}
+
 function PortfolioSummary({ streams }: { streams: DashStream[] }) {
   const initiatives = allInitiatives(streams);
   const total = initiatives.length;
@@ -542,6 +749,7 @@ function ExportButton({ streams }: { streams: DashStream[] }) {
             const u = init.latestUpdate;
             return {
               Stream: stream.name,
+              "Sub Stream": app.sub_stream,
               Application: app.name,
               Initiative: init.name,
               PIC: init.pic,

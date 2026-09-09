@@ -34,7 +34,7 @@ export async function GET() {
   `) as Stream[];
 
   const applications = (await sql`
-    SELECT id, stream_id, name, created_at FROM applications ORDER BY name ASC
+    SELECT id, stream_id, name, sub_stream, created_at FROM applications ORDER BY name ASC
   `) as Application[];
 
   const initiatives = (await sql`
